@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>API Console</title>
+<style>
+  :root {
+    --bg: #1a1b1e;
+    --bg-sidebar: #202125;
+    --bg-input: #25262b;
+    --border: #34353a;
+    --text: #e4e4e7;
+    --text-dim: #9a9aa2;
+    --text-faint: #6c6c74;
+    --orange: #ff7849;
+    --orange-dark: #ff5f29;
+    --green: #2bd99f;
+    --green-bg: #0e2e26;
+    --blue: #6e8fff;
+    --blue-bg: #1b2440;
+    --red: #ff5c5c;
+    --red-bg: #3a1c1c;
+    --row-hover: #232428;
+    --mono: ui-monospace, "SF Mono", Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  /* ---------------- top bar: method + url + send ---------------- */
+  .url-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+
+  select#method {
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--green);
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 13px;
+    padding: 9px 28px 9px 12px;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239a9aa2'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+  }
+
+  input#urlInput {
+    flex: 1;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 9px 12px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+    background: var(--bg-input);
+    outline: none;
+    min-width: 0;
+  }
+  input#urlInput:focus { border-color: var(--orange); }
+
+  button#sendBtn {
+    background: var(--orange);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 9px 22px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button#sendBtn:hover { background: var(--orange-dark); }
+  button#sendBtn:disabled { background: #f0a98a; cursor: not-allowed; }
+
+  button#cancelBtn {
+    background: var(--bg-input);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 9px 16px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    display: none;
+  }
+  button#cancelBtn.visible { display: inline-block; }
+  button#cancelBtn:hover { color: var(--text); border-color: var(--text-faint); }
+
+  /* ---------------- request config tabs ---------------- */
+  .request-section {
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tabs {
+    display: flex;
+    gap: 2px;
+    padding: 0 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tab {
+    padding: 9px 14px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    user-select: none;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--orange); border-bottom-color: var(--orange); }
+
+  .tab-panel { display: none; padding: 10px 16px 16px; }
+  .tab-panel.active { display: block; }
+
+  /* params table */
+  table.kv-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  table.kv-table th {
+    text-align: left;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+    font-weight: 600;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.kv-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.kv-table tr:hover { background: var(--row-hover); }
+
+  table.kv-table input[type="text"] {
+    width: 100%;
+    border: 1px solid transparent;
+    background: transparent;
+    padding: 6px 6px;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text);
+    outline: none;
+    border-radius: 3px;
+  }
+  table.kv-table input[type="text"]:focus {
+    border-color: var(--orange);
+    background: var(--bg-input);
+  }
+
+  table.kv-table input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: var(--orange);
+  }
+
+  td.col-check { width: 30px; text-align: center; }
+  td.col-remove { width: 30px; text-align: center; }
+
+  button.row-remove {
+    background: none;
+    border: none;
+    color: var(--text-faint);
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    padding: 2px 6px;
+  }
+  button.row-remove:hover { color: var(--red); }
+
+  .add-row-hint {
+    font-size: 11.5px;
+    color: var(--text-faint);
+    padding: 8px 8px 0;
+  }
+
+  /* ---------------- response area ---------------- */
+  .response-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .response-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 9px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-dim);
+    background: var(--bg-sidebar);
+    min-height: 16px;
+  }
+
+  .response-meta .status-pill {
+    font-weight: 700;
+    font-family: var(--mono);
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-size: 11.5px;
+  }
+  .response-meta .status-pill.ok { color: var(--green); background: var(--green-bg); }
+  .response-meta .status-pill.err { color: var(--red); background: var(--red-bg); }
+  .response-meta .status-pill.pending { color: var(--text-dim); background: var(--bg-input); }
+  .response-meta .status-pill.streaming { color: var(--blue); background: var(--blue-bg); }
+
+  .response-meta .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--blue);
+    display: inline-block;
+    animation: blink-dot 1s infinite ease-in-out;
+    margin-right: 5px;
+  }
+  @keyframes blink-dot { 50% { opacity: 0.2; } }
+
+  .response-body-wrap {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg);
+  }
+
+  pre#responseBody {
+    margin: 0;
+    padding: 18px 20px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.75;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text);
+  }
+
+  .stream-cursor {
+    display: inline-block;
+    width: 7px;
+    height: 13px;
+    background: var(--blue);
+    vertical-align: text-bottom;
+    margin-left: 1px;
+    animation: blink-dot 1s step-start infinite;
+  }
+
+  .placeholder {
+    color: var(--text-faint);
+    font-size: 13px;
+    padding: 40px 16px;
+    text-align: center;
+  }
+
+  .event-log-line {
+    color: var(--text-faint);
+    font-size: 11px;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #d6d6da; border-radius: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- URL bar -->
+  <div class="url-bar">
+    <select id="method">
+      <option>GET</option>
+    </select>
+    <input id="urlInput" type="text" spellcheck="false"
+      value="http://localhost:9090/chat/stream/qwen">
+    <button id="sendBtn">Send</button>
+    <button id="cancelBtn">Cancel</button>
+  </div>
+
+  <!-- Params / config tabs -->
+  <div class="request-section">
+    <div class="tabs">
+      <div class="tab active" data-tab="params">Params</div>
+      <div class="tab" data-tab="examples">Examples</div>
+    </div>
+
+    <div class="tab-panel active" id="panel-params">
+      <table class="kv-table">
+        <thead>
+          <tr>
+            <th class="col-check"></th>
+            <th>Key</th>
+            <th>Value</th>
+            <th class="col-remove"></th>
+          </tr>
+        </thead>
+        <tbody id="paramsBody"></tbody>
+      </table>
+      <div class="add-row-hint">Edit the bottom empty row to add a new param. Streaming is auto-detected from the response Content-Type — no setup needed.</div>
+    </div>
+
+    <div class="tab-panel" id="panel-examples">
+      <table class="kv-table">
+        <thead><tr><th>Endpoint</th><th>Method</th></tr></thead>
+        <tbody id="examplesBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Response -->
+  <div class="response-section">
+    <div class="response-meta" id="responseMeta">
+      <span>Response</span>
+    </div>
+    <div class="response-body-wrap">
+      <pre id="responseBody"><span class="placeholder">Click Send to get a response. SSE responses (Content-Type: text/event-stream) will stream in live.</span></pre>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ---------------- preset examples from the user's controller ----------------
+  const EXAMPLES = [
+    { label: 'Qwen — stream',   url: 'http://localhost:9090/chat/stream/qwen',  method: 'GET', params: { prompt: 'Tell me a joke', id: 'Test' } },
+    { label: 'Ollama — stream', url: 'http://localhost:9090/chat/stream/ollama', method: 'GET', params: { prompt: 'Tell me a joke', id: 'Test' } },
+    { label: 'Qwen — chat (blocking)',   url: 'http://localhost:9090/chat/chatQwen',   method: 'GET', params: { prompt: 'Hello', id: 'Test' } },
+    { label: 'Ollama — chat (blocking)', url: 'http://localhost:9090/chat/chatOllama', method: 'GET', params: { prompt: 'Hello', id: 'Test' } },
+    { label: 'Qwen — history',   url: 'http://localhost:9090/chat/history/getQwenMessage',   method: 'GET', params: { id: 'Test' } },
+    { label: 'Ollama — history', url: 'http://localhost:9090/chat/history/getOllamaMessage', method: 'GET', params: { id: 'Test' } },
+  ];
+
+  const urlInput = document.getElementById('urlInput');
+  const sendBtn = document.getElementById('sendBtn');
+  const cancelBtn = document.getElementById('cancelBtn');
+  const paramsBody = document.getElementById('paramsBody');
+  const examplesBody = document.getElementById('examplesBody');
+  const responseMeta = document.getElementById('responseMeta');
+  const responseBody = document.getElementById('responseBody');
+  const tabs = document.querySelectorAll('.tab');
+  const panels = document.querySelectorAll('.tab-panel');
+
+  let currentSource = null;
+  let currentController = null;
+
+  // ---------------- tabs ----------------
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ---------------- params table (key/value, synced with URL query string) ----------------
+  function paramRow(key = '', value = '', enabled = true) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="col-check"><input type="checkbox" class="p-enabled" ${enabled ? 'checked' : ''}></td>
+      <td><input type="text" class="p-key" value="${escapeAttr(key)}" placeholder="key"></td>
+      <td><input type="text" class="p-value" value="${escapeAttr(value)}" placeholder="value"></td>
+      <td class="col-remove"><button class="row-remove" title="remove">×</button></td>
+    `;
+    tr.querySelector('.row-remove').addEventListener('click', () => {
+      tr.remove();
+      ensureTrailingEmptyRow();
+      syncUrlFromParams();
+    });
+    tr.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('input', () => {
+        ensureTrailingEmptyRow();
+        syncUrlFromParams();
+      });
+    });
+    return tr;
+  }
+
+  function ensureTrailingEmptyRow() {
+    const rows = [...paramsBody.querySelectorAll('tr')];
+    const last = rows[rows.length - 1];
+    const lastKey = last ? last.querySelector('.p-key').value : '';
+    if (!last || lastKey.trim() !== '') {
+      paramsBody.appendChild(paramRow());
+    }
+  }
+
+  function escapeAttr(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  }
+
+  // rebuild params table from the URL's query string
+  function syncParamsFromUrl() {
+    let url;
+    try { url = new URL(urlInput.value); } catch { return; }
+    paramsBody.innerHTML = '';
+    url.searchParams.forEach((value, key) => {
+      paramsBody.appendChild(paramRow(key, value, true));
+    });
+    paramsBody.appendChild(paramRow());
+  }
+
+  // rebuild the URL's query string from the params table
+  function syncUrlFromParams() {
+    let url;
+    try { url = new URL(urlInput.value); } catch { return; }
+    const newParams = new URLSearchParams();
+    paramsBody.querySelectorAll('tr').forEach(tr => {
+      const enabled = tr.querySelector('.p-enabled').checked;
+      const key = tr.querySelector('.p-key').value.trim();
+      const value = tr.querySelector('.p-value').value;
+      if (enabled && key !== '') newParams.set(key, value);
+    });
+    url.search = newParams.toString();
+    urlInput.value = url.toString();
+  }
+
+  urlInput.addEventListener('input', syncParamsFromUrl);
+  syncParamsFromUrl();
+
+  // ---------------- examples tab ----------------
+  EXAMPLES.forEach(ex => {
+    const tr = document.createElement('tr');
+    tr.style.cursor = 'pointer';
+    tr.innerHTML = `<td>${ex.label}</td><td style="font-family:var(--mono);color:var(--green);font-weight:700;">${ex.method}</td>`;
+    tr.addEventListener('click', () => {
+      const u = new URL(ex.url);
+      Object.entries(ex.params).forEach(([k, v]) => u.searchParams.set(k, v));
+      urlInput.value = u.toString();
+      syncParamsFromUrl();
+      tabs.forEach(t => t.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+      document.querySelector('.tab[data-tab="params"]').classList.add('active');
+      document.getElementById('panel-params').classList.add('active');
+    });
+    examplesBody.appendChild(tr);
+  });
+
+  // ---------------- response meta helpers ----------------
+  function setMeta(html) {
+    responseMeta.innerHTML = html;
+  }
+
+  function clearResponse() {
+    responseBody.innerHTML = '';
+  }
+
+  function closeAnyActiveRequest() {
+    if (currentSource) { currentSource.close(); currentSource = null; }
+    if (currentController) { currentController.abort(); currentController = null; }
+    cancelBtn.classList.remove('visible');
+    sendBtn.disabled = false;
+  }
+
+  cancelBtn.addEventListener('click', () => {
+    closeAnyActiveRequest();
+    setMeta('<span class="status-pill pending">CANCELLED</span>');
+  });
+
+  // ---------------- send ----------------
+  sendBtn.addEventListener('click', send);
+  urlInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+
+  function send() {
+    closeAnyActiveRequest();
+
+    let targetUrl = urlInput.value.trim();
+    if (!targetUrl) return;
+
+    clearResponse();
+    setMeta('<span class="status-pill pending">SENDING…</span>');
+    sendBtn.disabled = true;
+
+    const startTime = performance.now();
+
+    // Probe with fetch first so we can read real status + headers,
+    // and switch to streaming render only if Content-Type says SSE.
+    const controller = new AbortController();
+    currentController = controller;
+
+    fetch(targetUrl, { signal: controller.signal })
+      .then(res => {
+        const contentType = res.headers.get('content-type') || '';
+        const elapsed = Math.round(performance.now() - startTime);
+
+        if (contentType.includes('text/event-stream')) {
+          // hand off to EventSource for proper incremental SSE parsing
+          currentController = null;
+          startEventStream(targetUrl, startTime);
+          return;
+        }
+
+        // non-streaming response — read fully then render
+        return res.text().then(text => {
+          currentController = null;
+          sendBtn.disabled = false;
+          renderFinalResponse(res, text, elapsed);
+        });
+      })
+      .catch(err => {
+        if (err.name === 'AbortError') return;
+        sendBtn.disabled = false;
+        currentController = null;
+        setMeta('<span class="status-pill err">ERROR</span>');
+        responseBody.innerHTML = `<span style="color:#ff5c5c;">Request failed: ${escapeHtml(err.message)}\n\nCheck that the server is running and CORS is enabled.</span>`;
+      });
+  }
+
+  function renderFinalResponse(res, text, elapsedMs) {
+    const ok = res.status >= 200 && res.status < 300;
+    setMeta(`
+      <span class="status-pill ${ok ? 'ok' : 'err'}">${res.status} ${res.statusText}</span>
+      <span>${elapsedMs} ms</span>
+      <span>${formatBytes(new Blob([text]).size)}</span>
+    `);
+
+    try {
+      const parsed = JSON.parse(text);
+      responseBody.textContent = JSON.stringify(parsed, null, 2);
+    } catch {
+      responseBody.textContent = text;
+    }
+  }
+
+  function startEventStream(targetUrl, startTime) {
+    setMeta('<span class="status-pill streaming"><span class="live-dot"></span>STREAMING</span><span id="streamElapsed">0 ms</span>');
+    responseBody.innerHTML = '<span class="stream-cursor"></span>';
+
+    cancelBtn.classList.add('visible');
+
+    const source = new EventSource(targetUrl);
+    currentSource = source;
+    let buffer = '';
+    let received = false;
+
+    const elapsedTimer = setInterval(() => {
+      const el = document.getElementById('streamElapsed');
+      if (el) el.textContent = Math.round(performance.now() - startTime) + ' ms';
+    }, 200);
+
+    source.onmessage = (event) => {
+      received = true;
+      buffer = appendChunk(buffer, event.data);
+      responseBody.innerHTML = '';
+      responseBody.appendChild(document.createTextNode(buffer));
+      const cursor = document.createElement('span');
+      cursor.className = 'stream-cursor';
+      responseBody.appendChild(cursor);
+    };
+
+    source.onerror = () => {
+      clearInterval(elapsedTimer);
+      source.close();
+      currentSource = null;
+      sendBtn.disabled = false;
+      cancelBtn.classList.remove('visible');
+
+      const elapsedMs = Math.round(performance.now() - startTime);
+      responseBody.innerHTML = '';
+      responseBody.appendChild(document.createTextNode(buffer));
+
+      if (!received) {
+        setMeta(`<span class="status-pill err">STREAM FAILED</span><span>${elapsedMs} ms</span>`);
+        responseBody.innerHTML += `\n\n<span style="color:#ff5c5c;">No data received. Check the endpoint URL, CORS, or that the model server is running.</span>`;
+      } else {
+        setMeta(`<span class="status-pill ok">200 OK (stream closed)</span><span>${elapsedMs} ms</span><span>${formatBytes(new Blob([buffer]).size)}</span>`);
+      }
+    };
+  }
+
+  function formatBytes(n) {
+    if (n < 1024) return n + ' B';
+    return (n / 1024).toFixed(2) + ' KB';
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // The browser's native EventSource parser strips leading whitespace from
+  // each `data:` field per the SSE spec — so a chunk Ollama sent as " here's"
+  // arrives to us as "here's", and naive concatenation glues tokens together
+  // with no spaces at all. This reconstructs a space between chunks wherever
+  // one is needed, based on punctuation/word-boundary heuristics.
+  function appendChunk(buffer, chunk) {
+    if (!chunk) return buffer;
+    if (!buffer) return chunk;
+
+    const lastChar = buffer[buffer.length - 1];
+    const nextChar = chunk[0];
+
+    const noSpaceBeforeNext = /[.,!?;:')\]}]/.test(nextChar);
+    const noSpaceAfterLast = /[(\[{'"\n]/.test(lastChar) || lastChar === ' ' || chunk.startsWith('\n');
+    const chunkStartsNewWord = /^[a-zA-Z0-9]/.test(nextChar) && /[a-zA-Z0-9]/.test(lastChar);
+
+    if (noSpaceBeforeNext || noSpaceAfterLast) {
+      return buffer + chunk;
+    }
+    if (chunkStartsNewWord) {
+      return buffer + ' ' + chunk;
+    }
+    return buffer + chunk;
+  }
+</script>
+
+</body>
+</html>

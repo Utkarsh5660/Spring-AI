@@ -7,6 +7,7 @@ import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 import java.util.List;
 
@@ -53,7 +54,24 @@ public class ModelService {
                 .call()
                 .content();
     }
+    // NEW: streaming version
+    public Flux<String> chatQwenStream(String conversationID,String userMessage){
+        return qwenClient.prompt()
+                .system("Your are a coding assistant , and all your replies should be keeping this thing in mind")
+                .user(userMessage)
+                .advisors(advisorSpec->advisorSpec.param(ChatMemory.CONVERSATION_ID,conversationID))
+                .stream()
+                .content();
+    }
 
+    public Flux<String> chatCodellamaStream(String id, String userMessage){
+        return codellamaCLient.prompt()
+                .system("Your are a general purpose assistant and all your answers should be keeping this point in consideration")
+                .user(userMessage)
+                .advisors(a->a.param(ChatMemory.CONVERSATION_ID,id))
+                .stream()
+                .content();
+    }
     public List<Message> getQwenHistoryMessage(String id){
         return chatMemoryQwen.get(id);
     }
